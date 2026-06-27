@@ -1,0 +1,1508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>UNICURSE</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+:root {
+  --void:#0A0608;--crimson:#8B1A1A;--amber:#FFB347;
+  --jade:#2D5A27;--bone:#E8DCC8;--rust:#7A3B2E;
+  --phosphor:#39FF14;--blood:#4A0808;--dim:#7A5520;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{
+  width:100%;height:100%;background:var(--void);color:var(--bone);
+  font-family:'Press Start 2P',monospace;font-size:8px;
+  overflow:hidden;-webkit-font-smoothing:none;touch-action:none;
+}
+body::after{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:9999;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.1) 2px,rgba(0,0,0,0.1) 4px);
+}
+.ct{position:fixed;width:16px;height:16px;pointer-events:none;z-index:100;}
+#ctl{top:0;left:0;border-top:3px solid var(--amber);border-left:3px solid var(--amber);}
+#ctr{top:0;right:0;border-top:3px solid var(--amber);border-right:3px solid var(--amber);}
+#cbl{bottom:0;left:0;border-bottom:3px solid var(--amber);border-left:3px solid var(--amber);}
+#cbr{bottom:0;right:0;border-bottom:3px solid var(--amber);border-right:3px solid var(--amber);}
+#init-screen{
+  position:fixed;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;background:var(--void);
+  z-index:1000;gap:20px;padding:20px;
+}
+.init-title{
+  font-size:22px;color:var(--amber);
+  text-shadow:2px 0 var(--crimson),-2px 0 var(--phosphor);
+  letter-spacing:4px;animation:glitch 3s infinite;text-align:center;
+}
+@keyframes glitch{
+  0%,90%,100%{text-shadow:2px 0 var(--crimson),-2px 0 var(--phosphor);transform:none;}
+  92%{text-shadow:-4px 0 var(--crimson),4px 0 var(--phosphor);transform:translateX(2px);}
+  94%{text-shadow:4px 0 var(--crimson),-4px 0 var(--phosphor);transform:translateX(-2px);}
+  96%{text-shadow:none;transform:none;}
+}
+.init-sub{font-size:7px;color:var(--rust);text-align:center;line-height:2;letter-spacing:2px;}
+#sigil-canvas{width:120px;height:120px;image-rendering:pixelated;}
+.init-btn{
+  background:var(--crimson);color:var(--bone);border:3px solid var(--amber);
+  font-family:'Press Start 2P',monospace;font-size:9px;padding:14px 28px;
+  cursor:pointer;letter-spacing:2px;box-shadow:4px 4px 0 var(--blood);
+  -webkit-tap-highlight-color:transparent;
+}
+.init-btn:active{transform:translate(2px,2px);box-shadow:2px 2px 0 var(--blood);}
+.init-warn{
+  font-size:6px;color:var(--dim);text-align:center;line-height:2.2;
+  max-width:280px;border:1px solid var(--rust);padding:10px;
+}
+#err-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.95);z-index:9000;padding:20px;overflow:auto;}
+#err-msg{font-size:7px;color:#ff4444;line-height:2;word-break:break-all;}
+#app{display:none;flex-direction:column;width:100%;height:100%;overflow:hidden;}
+#app.visible{display:flex;}
+.app-header{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:6px 8px 4px;border-bottom:2px solid var(--crimson);flex-shrink:0;
+}
+.app-title{font-size:11px;color:var(--amber);text-shadow:1px 0 var(--crimson);letter-spacing:3px;}
+.app-status{font-size:6px;color:var(--phosphor);display:flex;align-items:center;gap:4px;}
+.sdot{width:6px;height:6px;background:var(--phosphor);border-radius:50%;animation:pd 1s infinite;}
+.sdot.off{background:var(--rust);animation:none;opacity:0.5;}
+@keyframes pd{0%,100%{opacity:1;}50%{opacity:0.2;}}
+.info-bar{
+  display:flex;justify-content:space-between;padding:3px 8px;flex-shrink:0;
+  font-size:6px;color:var(--dim);border-bottom:1px solid var(--blood);
+}
+.info-scale{color:var(--amber);}
+#poly-canvas{flex:1;width:100%;display:block;touch-action:none;cursor:crosshair;}
+.controls{
+  display:flex;gap:4px;padding:8px 8px;flex-shrink:0;
+  border-top:2px solid var(--crimson);
+}
+.cbtn{
+  background:var(--blood);color:var(--amber);border:2px solid var(--rust);
+  font-family:'Press Start 2P',monospace;font-size:6px;padding:8px 4px;
+  cursor:pointer;flex:1;text-align:center;box-shadow:2px 2px 0 #000;
+  -webkit-tap-highlight-color:transparent;line-height:1.5;min-height:52px;
+}
+.cbtn:active{transform:translate(1px,1px);box-shadow:1px 1px 0 #000;}
+/* Base state — all same */
+.cbtn.primary{background:var(--blood);color:var(--amber);border-color:var(--rust);}
+
+/* MELODY — violet/purple: melodic, mystical */
+#melody-btn.active{background:#2a0a3a;border-color:#cc66ff;color:#ee99ff;box-shadow:2px 2px 0 #000,0 0 10px rgba(180,80,255,0.5);}
+
+/* BEAT — crimson red: rhythmic, percussive */
+#beat-btn.active{background:#3a0808;border-color:#ff4444;color:#ff9999;box-shadow:2px 2px 0 #000,0 0 10px rgba(255,50,50,0.5);}
+
+/* SCALE — gold/amber: tonal, harmonic */
+#scale-btn.active{background:#2a1a00;border-color:#ffcc00;color:#ffee88;box-shadow:2px 2px 0 #000,0 0 10px rgba(255,200,0,0.5);}
+
+/* CLR — orange: destructive, reset */
+#clear-btn.active{background:#2a1000;border-color:#ff6600;color:#ffaa44;box-shadow:2px 2px 0 #000,0 0 10px rgba(255,100,0,0.5);}
+
+/* SYNTH — electric blue: synthetic, drone */
+.cbtn.twin-on{background:#0a0a2a;border-color:#4488ff;color:#88bbff;box-shadow:2px 2px 0 #000,0 0 10px rgba(60,120,255,0.5);}
+
+/* SINGLE — warm green: organic, string */
+.cbtn.single-on{background:#0a1a0a;border-color:#44cc66;color:#88ee99;box-shadow:2px 2px 0 #000,0 0 10px rgba(50,200,80,0.5);}
+
+/* CLR danger base */
+.cbtn.danger{border-color:var(--rust);color:var(--amber);}
+.init-tempo-row{display:flex;align-items:center;gap:10px;width:80%;max-width:280px;}
+.init-tempo-lbl{font-size:7px;color:var(--dim);white-space:nowrap;}
+.init-tempo-val{font-size:8px;color:var(--amber);width:26px;text-align:right;flex-shrink:0;}
+.init-tempo-row input[type=range]{flex:1;-webkit-appearance:none;height:4px;background:var(--blood);border:1px solid var(--rust);outline:none;}
+.init-tempo-row input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;background:var(--amber);border:2px solid var(--bone);cursor:pointer;}
+</style>
+</head>
+<body>
+<div id="ctl" class="ct"></div><div id="ctr" class="ct"></div>
+<div id="cbl" class="ct"></div><div id="cbr" class="ct"></div>
+<div id="err-overlay"><div id="err-msg">ERROR</div></div>
+
+<div id="init-screen">
+  <div class="init-title">UNICURSE</div>
+  <canvas id="sigil-canvas" width="120" height="120"></canvas>
+  <div class="init-tempo-row">
+    <span class="init-tempo-lbl">TEMPO</span>
+    <input type="range" id="init-tempo-slider" min="60" max="180" value="95">
+    <span class="init-tempo-val" id="init-tempo-val">95</span>
+  </div>
+  <button class="init-btn" id="invoke-btn">&#9658; INVOKE &#9668;</button>
+</div>
+
+<div id="app">
+  <div class="app-header">
+    <div class="app-title">UNICURSE</div>
+    <div class="app-status"><div class="sdot off" id="sdot"></div><span id="stxt">IDLE</span></div>
+  </div>
+  <div class="info-bar">
+    <span id="scale-display" class="info-scale">-- SCALE --</span>
+    <span id="key-display">-</span>
+  </div>
+  <canvas id="poly-canvas"></canvas>
+  <div class="controls">
+    <button class="cbtn primary" id="melody-btn">&#9834; MELODY</button>
+    <button class="cbtn" id="beat-btn">&#9700; BEAT</button>
+    <button class="cbtn" id="scale-btn">&#9834; SCALE</button>
+    <button class="cbtn danger" id="clear-btn">&#10005; CLR</button>
+    <button class="cbtn" id="twin-btn">&#9834; SYNTH</button>
+    <button class="cbtn" id="single-btn">&#9673; SINGLE</button>
+  </div>
+</div>
+
+<script>
+window.onerror=function(msg,src,line,col,err){
+  var o=document.getElementById('err-overlay'),m=document.getElementById('err-msg');
+  if(o&&m){o.style.display='block';m.textContent='ERR:'+msg+' L:'+line+' '+(err?err.stack:'');}
+  return false;
+};
+
+// ═══════════════════════════════════════════════════
+//  AUDIO ENGINE
+// ═══════════════════════════════════════════════════
+var ctx,masterGain,distortionNode,toneFilter,limiter,analyserNode;
+var fbLoopGain,fbTunerOsc,fbTunerGain,fbTunerFilter,drumBus,compressor;
+var isPlaying=false,currentStep=0,nextNoteTime=0,timerID=null;
+var tempo=95,steps=16,driveAmount=60,toneFreq=1800,fbAmount=0.55;
+var fbSilentSteps=0,fbCurrentFreq=220;
+
+var SCALES={
+  'PHRYGIAN DOM':[0,1,4,5,7,8,10],'HIJAZ':[0,1,4,5,7,8,11],
+  'DOUBLE HARM':[0,1,4,5,7,8,11],'MAQAM RAST':[0,2,3,5,7,9,10],
+  'BAYATI':[0,1,3,5,7,8,10],'SABA':[0,1,3,4,7,8,10],
+  'NAWA ATHAR':[0,2,3,6,7,8,11],'SIKAH':[0,1,3,5,7,8,11],
+  'YORUBA PENT':[0,2,5,7,10],'MANDE PENT':[0,3,5,7,10],
+  'FULANI PENT':[0,2,4,7,9],'PYGMY PENT':[0,3,5,8,10],
+  'KUMBENGO':[0,2,3,7,9],'DORIAN':[0,2,3,5,7,9,10],
+  'PHRYGIAN':[0,1,3,5,7,8,10],'LOCRIAN':[0,1,3,5,6,8,10],
+  'WHOLE TONE':[0,2,4,6,8,10],'DIMINISHED':[0,2,3,5,6,8,9,11]
+};
+var SCALE_NAMES=Object.keys(SCALES);
+var ROOTS=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+var ROOT_MIDI={'C':48,'C#':49,'D':50,'D#':51,'E':52,'F':53,'F#':54,'G':55,'G#':56,'A':57,'A#':58,'B':59};
+var currentScale=SCALES['HIJAZ'],currentRoot='D',currentScaleName='HIJAZ';
+var melodyNotes=[];
+
+var ROWS=[
+  {id:'kick',   baseFreq:55,  type:'kick'},
+  {id:'snare',  baseFreq:180, type:'snare'},
+  {id:'hihat',  baseFreq:8000,type:'hihat'},
+  {id:'openhat',baseFreq:6000,type:'openhat'},
+  {id:'tom1',   baseFreq:110, type:'tom'},
+  {id:'tom2',   baseFreq:70,  type:'tom2'}
+];
+var grid={};
+for(var ri=0;ri<ROWS.length;ri++){grid[ROWS[ri].id]=[];for(var si=0;si<steps;si++)grid[ROWS[ri].id].push(false);}
+var drumTunings={kick:55,snare:180,tom1:110,tom2:70};
+
+function midiToHz(m){return 440*Math.pow(2,(m-69)/12);}
+function scaleDegreeToHz(deg,oct){
+  var rm=ROOT_MIDI[currentRoot]||48;
+  var sl=currentScale.length;
+  if(!sl)return 55;
+  var interval=currentScale[deg%sl]||0;
+  var hz=midiToHz(rm+interval+Math.floor(deg/sl)*12+((oct||0)*12));
+  return(hz&&hz>0&&!isNaN(hz))?hz:55;
+}
+function applyScaleToDrums(){
+  var sl=currentScale.length;
+  drumTunings.kick=scaleDegreeToHz(0,-2);drumTunings.snare=scaleDegreeToHz(Math.min(1,sl-1),1);
+  drumTunings.tom1=scaleDegreeToHz(Math.min(2,sl-1),-1);drumTunings.tom2=scaleDegreeToHz(Math.min(4,sl-1),-2);
+  for(var i=0;i<ROWS.length;i++){
+    if(ROWS[i].id==='kick')ROWS[i].baseFreq=drumTunings.kick;
+    if(ROWS[i].id==='snare')ROWS[i].baseFreq=drumTunings.snare;
+    if(ROWS[i].id==='tom1')ROWS[i].baseFreq=drumTunings.tom1;
+    if(ROWS[i].id==='tom2')ROWS[i].baseFreq=drumTunings.tom2;
+  }
+}
+function getScaleFreqs(){
+  var rm=ROOT_MIDI[currentRoot]||48,f=[];
+  for(var i=0;i<currentScale.length;i++){
+    var hz=midiToHz(rm+currentScale[i]);
+    if(hz&&hz>0&&!isNaN(hz))f.push(hz);
+  }
+  if(f.length===0)f=[220,330,440]; // fallback
+  return f;
+}
+function snapToScale(freq,sf){
+  if(!freq||isNaN(freq)||freq<=0||!sf||sf.length===0)return 220;
+  var best=sf[0],bd=Infinity;
+  for(var i=0;i<sf.length;i++){
+    if(!sf[i]||sf[i]<=0)continue;
+    for(var o=-2;o<=2;o++){
+      var c=sf[i]*Math.pow(2,o);
+      if(c<=0)continue;
+      var d=Math.abs(Math.log(freq/c));
+      if(d<bd){bd=d;best=c;}
+    }
+  }
+  return best||220;
+}
+function regenerateMelody(){
+  var f=getScaleFreqs(),pool=[];
+  for(var i=0;i<f.length;i++){pool.push(f[i]);pool.push(f[i]*2);}
+  var dk=['kick','snare','tom1','tom2'];
+  for(var i=0;i<dk.length;i++)pool.push(snapToScale(drumTunings[dk[i]],f));
+  melodyNotes=[];for(var i=0;i<steps;i++)melodyNotes.push(pool[Math.floor(Math.random()*pool.length)]);
+}
+function setDriveCurve(amt){
+  var n=512,c=new Float32Array(n),k=amt;
+  for(var i=0;i<n;i++){var x=(i*2)/n-1;c[i]=((Math.PI+k)*x)/(Math.PI+k*Math.abs(x));}
+  distortionNode.curve=c;
+}
+function initAudio(){
+  try{
+    ctx=new (window.AudioContext||window.webkitAudioContext)();
+    distortionNode=ctx.createWaveShaper();distortionNode.oversample='4x';setDriveCurve(driveAmount);
+    toneFilter=ctx.createBiquadFilter();toneFilter.type='lowpass';toneFilter.frequency.value=toneFreq;toneFilter.Q.value=0.7;
+    masterGain=ctx.createGain();masterGain.gain.value=0.7;
+    compressor=ctx.createDynamicsCompressor();
+    compressor.threshold.value=-18;compressor.knee.value=8;compressor.ratio.value=6;compressor.attack.value=0.002;compressor.release.value=0.2;
+    limiter=ctx.createDynamicsCompressor();
+    limiter.threshold.value=-2;limiter.knee.value=0;limiter.ratio.value=20;limiter.attack.value=0.001;limiter.release.value=0.05;
+    analyserNode=ctx.createAnalyser();analyserNode.fftSize=256;
+    drumBus=ctx.createGain();drumBus.gain.value=1.35;
+    fbLoopGain=ctx.createGain();fbLoopGain.gain.value=fbAmount*0.18;
+    fbTunerOsc=ctx.createOscillator();fbTunerOsc.type='sawtooth';fbTunerOsc.frequency.value=fbCurrentFreq;
+    fbTunerFilter=ctx.createBiquadFilter();fbTunerFilter.type='bandpass';fbTunerFilter.frequency.value=fbCurrentFreq;fbTunerFilter.Q.value=7;
+    fbTunerGain=ctx.createGain();fbTunerGain.gain.value=0.0;
+    drumBus.connect(distortionNode);
+    fbTunerOsc.connect(fbTunerFilter);fbTunerFilter.connect(fbTunerGain);fbTunerGain.connect(distortionNode);
+    distortionNode.connect(toneFilter);toneFilter.connect(masterGain);
+    toneFilter.connect(fbLoopGain);fbLoopGain.connect(distortionNode);
+    masterGain.connect(compressor);compressor.connect(analyserNode);analyserNode.connect(limiter);limiter.connect(ctx.destination);
+    fbTunerOsc.start();ctx.resume();
+    randomizeScale();setDefaultBeat();
+    document.getElementById('init-screen').style.display='none';
+    document.getElementById('app').classList.add('visible');
+    initTwin();
+    resizeCanvas();startRender();startMeter();
+    startPlayback();
+  }catch(e){
+    var o=document.getElementById('err-overlay'),m=document.getElementById('err-msg');
+    o.style.display='block';m.textContent='INIT ERR:'+e.message+'\n'+e.stack;
+  }
+}
+
+
+
+// ── SINGLE STRING PLUCK ─────────────────────────────────
+// Karplus-Strong warm muted bass string
+// 2-3 note motif, fires every 2 feedback loops (32 drum steps)
+var singleActive=false;
+var singleDouble=false; // double-time mode when held
+var singleMotif=[];      // [{freq,time}] — note positions in 32-step grid
+var singleLoopCounter=0; // persistent 0-31 counter, increments every drum step
+var singleScheduled=[];  // scheduled note times to avoid double-fire
+
+// ── TWIN VOICE ─────────────────────────────────────────
+// Wide stereo halftime drone synth over 32 steps
+var twinActive=false;
+var twinNoteIdx=0;         // current index into twinPhrase
+var twinPhrase=[];         // [{freq, dur}] — variable duration notes, total=64 drum steps
+var TWIN_LOOP_STEPS=64;    // always 64 drum steps = 4 drum loops
+var twinOscL=null,twinOscL2=null;
+var twinOscR=null,twinOscR2=null;
+var twinGainL=null,twinGainR=null;
+var twinFilter=null;
+var twinMerger=null;
+var twinMaster=null;
+var twinNoteTimeout=null;
+var TWIN_DETUNE=22;
+
+var twinDelay=null,twinDelayFb=null,twinDelayGain=null;
+
+function initTwin(){
+  twinMerger=ctx.createChannelMerger(2);
+  twinFilter=ctx.createBiquadFilter();
+  twinFilter.type='lowpass';twinFilter.frequency.value=120;twinFilter.Q.value=7.5;
+  twinMaster=ctx.createGain();twinMaster.gain.value=0.0;
+
+  // Left channel
+  twinOscL=ctx.createOscillator();twinOscL.type='sawtooth';twinOscL.frequency.value=110;twinOscL.detune.value=-TWIN_DETUNE;
+  twinOscL2=ctx.createOscillator();twinOscL2.type='sawtooth';twinOscL2.frequency.value=110;twinOscL2.detune.value=TWIN_DETUNE*0.5;
+  twinGainL=ctx.createGain();twinGainL.gain.value=0.0;
+  var mixL=ctx.createGain();mixL.gain.value=0.5;
+  twinOscL.connect(mixL);twinOscL2.connect(mixL);mixL.connect(twinGainL);
+  twinGainL.connect(twinMerger,0,0);
+
+  // Right channel
+  twinOscR=ctx.createOscillator();twinOscR.type='sawtooth';twinOscR.frequency.value=110;twinOscR.detune.value=TWIN_DETUNE;
+  twinOscR2=ctx.createOscillator();twinOscR2.type='triangle';twinOscR2.frequency.value=110;twinOscR2.detune.value=-TWIN_DETUNE*0.5;
+  twinGainR=ctx.createGain();twinGainR.gain.value=0.0;
+  var mixR=ctx.createGain();mixR.gain.value=0.5;
+  twinOscR.connect(mixR);twinOscR2.connect(mixR);mixR.connect(twinGainR);
+  twinGainR.connect(twinMerger,0,1);
+
+  // Double-saw frequency sweep LFO
+  // osc2 pair (L2/R2) detune sweeps slowly up and down against osc1
+  // This is the beating movement that defines the double-saw sound
+  var twinSweepLFO=ctx.createOscillator();
+  twinSweepLFO.type='sine';
+  twinSweepLFO.frequency.value=0.18; // very slow — about 1 cycle per 5.5 seconds
+  var twinSweepDepth=ctx.createGain();
+  twinSweepDepth.gain.value=55; // cents of sweep range — wide beating
+  // LFO modulates detune of osc2 pair
+  twinSweepLFO.connect(twinSweepDepth);
+  twinSweepDepth.connect(twinOscL2.detune);
+  twinSweepDepth.connect(twinOscR2.detune);
+  // Counter-phase on right channel for extra width
+  var twinSweepInv=ctx.createGain();
+  twinSweepInv.gain.value=-40; // opposite direction, slightly narrower
+  twinSweepLFO.connect(twinSweepInv);
+  twinSweepInv.connect(twinOscR.detune);
+  twinSweepLFO.start();
+
+  // Tail delay — long dark echo that sustains when toggled off
+  twinDelay=ctx.createDelay(4.0);
+  twinDelay.delayTime.value=0.55;
+  twinDelayFb=ctx.createGain();twinDelayFb.gain.value=0.0; // closed until toggle-off
+  twinDelayGain=ctx.createGain();twinDelayGain.gain.value=0.0;
+  var delayDark=ctx.createBiquadFilter();
+  delayDark.type='lowpass';delayDark.frequency.value=500;
+  twinDelay.connect(delayDark);delayDark.connect(twinDelayFb);twinDelayFb.connect(twinDelay);
+  twinDelay.connect(twinDelayGain);twinDelayGain.connect(limiter);
+
+  // Main chain
+  twinMerger.connect(twinFilter);twinFilter.connect(twinMaster);
+  twinMaster.connect(limiter);
+  twinMaster.connect(twinDelay); // feed into delay always; gain controls output
+
+  twinOscL.start();twinOscL2.start();twinOscR.start();twinOscR2.start();
+  regenerateTwinNotes();
+}
+
+function regenerateTwinNotes(){
+  var f=getScaleFreqs();
+  var rm=ROOT_MIDI[currentRoot];
+  // Always seed pool with scale tones so it never runs empty
+  var pool=[midiToHz(rm-12),midiToHz(rm-7),midiToHz(rm),midiToHz(rm+5),midiToHz(rm+7)];
+  // Add melody notes if available
+  for(var i=0;i<melodyNotes.length;i++){
+    var sn=snapToScale(melodyNotes[i],f);
+    if(sn&&!isNaN(sn))pool.push(sn);
+    var snl=snapToScale(melodyNotes[i]*0.5,f);
+    if(snl&&!isNaN(snl))pool.push(snl);
+  }
+
+  var durOptions=[4,6,8,8,12,16];
+  twinPhrase=[];
+  var budget=TWIN_LOOP_STEPS;
+  var lastFreq=-1;
+  var safety=0;
+
+  while(budget>0&&safety<200){
+    safety++;
+    // Always clamp to remaining budget — guaranteed to make progress
+    var dur=Math.min(budget,durOptions[Math.floor(Math.random()*durOptions.length)]);
+    if(dur<=0)dur=budget; // safety: consume remainder
+
+    var freq=pool[Math.floor(Math.random()*pool.length)];
+    if(!freq||isNaN(freq))freq=midiToHz(rm-12);
+    freq=Math.max(20,freq);
+
+    twinPhrase.push({freq:freq,dur:dur});
+    lastFreq=freq;
+    budget-=dur;
+  }
+  // Safety: if somehow still empty
+  if(twinPhrase.length===0){
+    twinPhrase.push({freq:midiToHz(rm-12),dur:TWIN_LOOP_STEPS});
+  }
+}
+
+function toggleTwin(){
+  twinActive=!twinActive;
+  var btn=document.getElementById('twin-btn');
+  var now=ctx.currentTime;
+  if(twinActive){
+    btn.classList.add('twin-on');btn.textContent='\u266a SYNTH';
+    // Close delay output, open osc
+    twinDelayGain.gain.setTargetAtTime(0.0,now,0.05);
+    twinDelayFb.gain.setTargetAtTime(0.0,now,0.05);
+    twinMaster.gain.setTargetAtTime(0.55,now,0.3);
+    twinNoteIdx=0;
+    scheduleTwinNote(now+0.05);
+  }else{
+    btn.classList.remove('twin-on');btn.textContent='\u266a SYNTH';
+    // Fade oscillators — let delay carry the tail
+    twinMaster.gain.setTargetAtTime(0.0,now,0.8);
+    twinGainL.gain.setTargetAtTime(0.0,now,0.6);
+    twinGainR.gain.setTargetAtTime(0.0,now,0.6);
+    // Open delay output and feedback for the long echo tail
+    twinDelayGain.gain.setTargetAtTime(0.38,now,0.1);
+    twinDelayFb.gain.setTargetAtTime(0.64,now,0.1);
+    // Long tail — hold at full for 3s then fade slowly over ~12 seconds
+    twinDelayGain.gain.setTargetAtTime(0.0,now+3.0,4.5);
+    twinDelayFb.gain.setTargetAtTime(0.0,now+2.0,3.5);
+    if(twinNoteTimeout)clearTimeout(twinNoteTimeout);
+  }
+}
+
+function scheduleTwinNote(time){
+  if(!twinActive)return;
+  if(!twinPhrase||twinPhrase.length===0)return;
+
+  var stepDur=(60.0/tempo)/4;
+  var note=twinPhrase[twinNoteIdx];
+  var freq=note.freq;
+  var noteDur=stepDur*note.dur; // actual seconds for this note
+  var now=time;
+
+  // Pitch glide — proportional to note length, always feels slow
+  var glide=Math.min(noteDur*0.05,0.08);
+  twinOscL.frequency.setValueAtTime(twinOscL.frequency.value,now);
+  twinOscL.frequency.exponentialRampToValueAtTime(freq,now+glide);
+  twinOscL2.frequency.setValueAtTime(twinOscL2.frequency.value,now);
+  twinOscL2.frequency.exponentialRampToValueAtTime(freq,now+glide*1.15);
+  twinOscR.frequency.setValueAtTime(twinOscR.frequency.value,now);
+  twinOscR.frequency.exponentialRampToValueAtTime(freq,now+glide*0.9);
+  twinOscR2.frequency.setValueAtTime(twinOscR2.frequency.value,now);
+  twinOscR2.frequency.exponentialRampToValueAtTime(freq,now+glide*1.25);
+
+  // Amp — attack scales with note length, short notes punch in faster
+  var att=Math.min(noteDur*0.12,0.15);
+  twinGainL.gain.cancelScheduledValues(now);
+  twinGainL.gain.setValueAtTime(twinGainL.gain.value,now);
+  twinGainL.gain.linearRampToValueAtTime(0.72,now+att);
+  twinGainR.gain.cancelScheduledValues(now);
+  twinGainR.gain.setValueAtTime(twinGainR.gain.value,now);
+  twinGainR.gain.linearRampToValueAtTime(0.65,now+att*1.2);
+
+  // Resonant filter sweep — breathes across the full note duration
+  var filterLow=80+freq*0.3;
+  var filterPeak=Math.min(1400,160+freq*1.1+Math.random()*200);
+  twinFilter.Q.value=7.5;
+  twinFilter.frequency.cancelScheduledValues(now);
+  twinFilter.frequency.setValueAtTime(filterLow,now);
+  twinFilter.frequency.exponentialRampToValueAtTime(filterPeak,now+noteDur*1.1);
+  twinFilter.frequency.exponentialRampToValueAtTime(filterLow*1.2,now+noteDur*1.9);
+
+  // Advance — wrap back to 0 after last note = loop
+  twinNoteIdx=(twinNoteIdx+1)%twinPhrase.length;
+
+  var delay=Math.max(10,(time-ctx.currentTime+noteDur)*1000);
+  (function(nextTime){
+    twinNoteTimeout=setTimeout(function(){scheduleTwinNote(nextTime);},delay);
+  })(time+noteDur);
+}
+
+
+// ── SINGLE ENGINE ───────────────────────────────────────
+function karplusStrongPluck(freq, time, decay, gain){
+  // Karplus-Strong: noise burst fed into delay loop = plucked string
+  var bufSize=Math.round(ctx.sampleRate/freq);
+  if(bufSize<2)bufSize=2;
+  var buf=ctx.createBuffer(1,bufSize,ctx.sampleRate);
+  var data=buf.getChannelData(0);
+  // Warm muted initial burst — bandlimited noise (not full white)
+  for(var i=0;i<bufSize;i++){
+    data[i]=(Math.random()*2-1)*0.8;
+    // Low-pass the initial burst for warmth
+    if(i>0)data[i]=data[i]*0.5+data[i-1]*0.5;
+  }
+
+  var src=ctx.createBufferSource();
+  src.buffer=buf;
+  src.loop=true;
+
+  // Warmth filter — muted bass string character
+  var bodyFilter=ctx.createBiquadFilter();
+  bodyFilter.type='lowpass';
+  bodyFilter.frequency.value=Math.min(2200,freq*5);
+  bodyFilter.Q.value=0.8;
+
+  // String body resonance
+  var resonFilter=ctx.createBiquadFilter();
+  resonFilter.type='peaking';
+  resonFilter.frequency.value=freq*2;
+  resonFilter.gain.value=4;
+  resonFilter.Q.value=2;
+
+  // Decay envelope
+  var env=ctx.createGain();
+  env.gain.setValueAtTime(0.001,time);
+  env.gain.linearRampToValueAtTime(gain,time+0.008); // fast attack — it's a pluck
+  env.gain.exponentialRampToValueAtTime(0.001,time+decay);
+
+  // Output gain
+  var out=ctx.createGain();
+  out.gain.value=4.2;
+
+  src.connect(bodyFilter);
+  bodyFilter.connect(resonFilter);
+  resonFilter.connect(env);
+  env.connect(out);
+  out.connect(limiter); // bypass distortion — keep pluck clean and audible
+
+  src.start(time);
+  src.stop(time+decay+0.05);
+}
+
+function generateSingleMotif(){
+  // Build a 2-3 note motif from scale root/3rd/5th/octave
+  // Walking bass feel: stepwise movement, small intervals, repetitive
+  var f=getScaleFreqs();
+  var rm=ROOT_MIDI[currentRoot];
+
+  // Bass register — 2 octaves below middle
+  var rootHz  =midiToHz(rm-12);
+  var thirdHz  =midiToHz(rm-12+currentScale[Math.min(2,currentScale.length-1)]);
+  var fifthHz  =midiToHz(rm-12+currentScale[Math.min(4,currentScale.length-1)]);
+  var octHz    =midiToHz(rm); // root octave
+
+  // Also snap synth's current note for cohesion
+  var synthAnchor=midiToHz(rm-24);
+  if(twinPhrase.length>0){
+    synthAnchor=Math.max(20,twinPhrase[0].freq*0.75);
+  }
+
+  // Pool of 2-3 bass notes — always stepwise/close together
+  var notePool=[rootHz,thirdHz,fifthHz];
+  // Pick 2 or 3 distinct pitches for the motif
+  var numNotes=2+Math.floor(Math.random()*2); // 2 or 3
+  var motifPitches=[];
+  for(var i=0;i<numNotes;i++){
+    motifPitches.push(notePool[i%notePool.length]);
+  }
+
+  // Dense driving patterns — notes repeat for hook feeling
+  // More hits, closer together, cycling through the 2-3 motif pitches
+  var patterns=[
+    [0,4,8,12,16,20,24,28],        // straight 4-on-the-floor feel, full cycle
+    [0,4,8,16,20,24,28],           // slight gap at 12 for breathing room
+    [0,3,6,12,16,20,24,28],        // triplet push at start then steady
+    [0,4,8,12,16,24,28],           // double hit at end for drive
+    [0,4,6,12,16,20,24,28],        // syncopated second hit
+    [0,4,8,12,18,22,26,30],        // shifted second half
+  ];
+  var pat=patterns[Math.floor(Math.random()*patterns.length)];
+
+  singleMotif=[];
+  for(var i=0;i<pat.length;i++){
+    // Cycle through motif pitches — repetition is the hook
+    var pitch=motifPitches[i%motifPitches.length];
+    // Every 4th note resolve to root for anchor feel
+    if(i%4===3)pitch=rootHz;
+    singleMotif.push({step:pat[i],freq:pitch});
+  }
+}
+
+function scheduleSingleStep(step,time){
+  if(!singleActive||singleMotif.length===0)return;
+  var loopStep=singleLoopCounter%32;
+  singleLoopCounter++;
+  var stepDur=(60.0/tempo)/4;
+
+  if(singleDouble){
+    // Double-time: compress the 32-step motif into 16 steps
+    // by matching against loopStep*2 — every note fires twice as fast
+    var doubleStep=singleLoopCounter%16; // 0-15 counter runs at full drum speed
+    for(var i=0;i<singleMotif.length;i++){
+      // Map motif step into half the space: motif step 0->0, 4->2, 8->4, 16->8 etc
+      var mappedStep=Math.floor(singleMotif[i].step/2);
+      if(mappedStep===doubleStep){
+        var decay=stepDur*2+Math.random()*stepDur*0.5;
+        karplusStrongPluck(singleMotif[i].freq,time,decay,2.2);
+      }
+    }
+  }else{
+    for(var i=0;i<singleMotif.length;i++){
+      if(singleMotif[i].step===loopStep){
+        var decay=stepDur*4+Math.random()*stepDur;
+        karplusStrongPluck(singleMotif[i].freq,time,decay,2.2);
+      }
+    }
+  }
+}
+
+function setSingleLabel(){
+  var btn=document.getElementById('single-btn');
+  if(!singleActive){
+    btn.classList.remove('single-on');
+    btn.textContent='○ SINGLE';
+    singleDouble=false;
+  }else if(singleDouble){
+    btn.classList.add('single-on');
+    btn.textContent='●● DOUBLE';
+  }else{
+    btn.classList.add('single-on');
+    btn.textContent='● SINGLE';
+  }
+}
+
+var singleHoldTimer=null;
+var singlePressTime=0;
+
+function onSinglePress(){
+  singlePressTime=Date.now();
+  singleHoldTimer=setTimeout(function(){
+    // Held for 500ms — toggle double mode
+    if(singleActive){
+      singleDouble=!singleDouble;
+      setSingleLabel();
+    }
+    singleHoldTimer=null;
+  },500);
+}
+
+function onSingleRelease(){
+  if(singleHoldTimer){
+    // Short tap — toggle on/off
+    clearTimeout(singleHoldTimer);
+    singleHoldTimer=null;
+    singleActive=!singleActive;
+    if(singleActive){generateSingleMotif();singleDouble=false;}
+    setSingleLabel();
+  }
+  // If hold timer already fired, do nothing on release
+}
+
+function toggleSingle(){
+  // Kept for compatibility — not used directly anymore
+  singleActive=!singleActive;
+  if(singleActive){generateSingleMotif();singleDouble=false;}
+  setSingleLabel();
+}
+
+// ── SEQUENCER ───────────────────────────────────────────
+var activeStep=-1;
+var hitEnergy=0; // spikes on each drum hit, drives shape deformation
+var rowEnergies=[0,0,0,0,0,0]; // per-row energy
+
+function startPlayback(){
+  if(!ctx||isPlaying)return;
+  if(ctx.state==='suspended')ctx.resume();
+  isPlaying=true;
+  currentStep=0;fbSilentSteps=0;singleLoopCounter=0;nextNoteTime=ctx.currentTime+0.05;
+  scheduler();
+  var dot=document.getElementById('sdot'),txt=document.getElementById('stxt');
+  dot.classList.remove('off');txt.textContent='PLAYING';
+}
+function togglePlay(){
+  if(!ctx)return;
+  if(ctx.state==='suspended')ctx.resume();
+  isPlaying=!isPlaying;
+  var dot=document.getElementById('sdot'),txt=document.getElementById('stxt');
+  if(isPlaying){
+    currentStep=0;fbSilentSteps=0;singleLoopCounter=0;nextNoteTime=ctx.currentTime+0.05;
+    scheduler();dot.classList.remove('off');txt.textContent='PLAYING';
+  }else{
+    clearTimeout(timerID);
+    if(fbTunerGain)fbTunerGain.gain.setTargetAtTime(0.0,ctx.currentTime,0.05);
+    dot.classList.add('off');txt.textContent='IDLE';activeStep=-1;currentStep=0;
+  }
+}
+function scheduler(){
+  while(nextNoteTime<ctx.currentTime+0.1){
+    scheduleStep(currentStep,nextNoteTime);
+    nextNoteTime+=(60.0/tempo)/4;
+    currentStep=(currentStep+1)%steps;
+  }
+  timerID=setTimeout(scheduler,25);
+}
+function scheduleStep(step,time){
+  var delay=Math.max(0,(time-ctx.currentTime)*1000);
+  (function(s){setTimeout(function(){if(isPlaying){activeStep=s;onStepVisual(s);}},delay);})(step);
+  var anyDrum=false;
+  for(var ri=0;ri<ROWS.length;ri++){if(grid[ROWS[ri].id][step]){anyDrum=true;break;}}
+  if(anyDrum){
+    fbSilentSteps=0;fbTunerGain.gain.cancelScheduledValues(time);fbTunerGain.gain.setValueAtTime(0.001,time);
+    for(var ri=0;ri<ROWS.length;ri++){
+      if(grid[ROWS[ri].id][step]){
+        triggerDrum(ROWS[ri],time);
+        (function(r){setTimeout(function(){rowEnergies[r]=1.0;hitEnergy=1.0;},delay);})(ri);
+      }
+    }
+  }else{
+    fbSilentSteps++;
+    var sw=Math.min(fbAmount*0.85,0.03+fbSilentSteps*0.035);
+    var at=Math.min(0.08,((60.0/tempo)/4)*0.3);
+    fbTunerGain.gain.cancelScheduledValues(time);fbTunerGain.gain.setValueAtTime(fbTunerGain.gain.value,time);
+    fbTunerGain.gain.linearRampToValueAtTime(sw,time+at);
+  }
+  // During silence: feedback melody follows synth pitch if synth is on,
+  // otherwise plays its own melody notes
+  var mf;
+  if(!anyDrum&&twinActive&&twinPhrase.length>0){
+    // Lock to current synth note so feedback and synth sing together
+    mf=Math.max(20,twinPhrase[twinNoteIdx>0?twinNoteIdx-1:0].freq);
+  }else{
+    mf=Math.max(20,melodyNotes[step%melodyNotes.length]||fbCurrentFreq);
+  }
+  // Single pluck — fires on its 32-step motif grid
+  scheduleSingleStep(currentStep,time);
+  var gl=anyDrum?0.01:0.06;
+  fbTunerOsc.frequency.setValueAtTime(fbTunerOsc.frequency.value,time);
+  fbTunerOsc.frequency.exponentialRampToValueAtTime(mf,time+gl);
+  fbTunerFilter.frequency.setValueAtTime(fbTunerFilter.frequency.value,time);
+  fbTunerFilter.frequency.exponentialRampToValueAtTime(mf,time+gl);
+  fbCurrentFreq=mf;
+}
+
+// ── DRUMS ───────────────────────────────────────────────
+function triggerDrum(row,time){
+  if(row.type==='kick')triggerKick(row.baseFreq,time);
+  else if(row.type==='snare')triggerSnare(row.baseFreq,time);
+  else if(row.type==='hihat')triggerHihat(row.baseFreq,time,0.055);
+  else if(row.type==='openhat')triggerHihat(row.baseFreq,time,0.38);
+  else triggerTom(row.baseFreq,time);
+}
+function triggerKick(freq,time){
+  var s=ctx.createOscillator();s.type='sine';s.frequency.setValueAtTime(freq,time);
+  var sf=ctx.createBiquadFilter();sf.type='lowpass';sf.frequency.value=freq*4;sf.Q.value=3;
+  var e=ctx.createGain();e.gain.setValueAtTime(0.001,time);e.gain.linearRampToValueAtTime(2.2,time+0.005);
+  e.gain.exponentialRampToValueAtTime(1.4,time+0.05);e.gain.exponentialRampToValueAtTime(0.001,time+1.1);
+  var p=ctx.createOscillator();p.type='triangle';p.frequency.setValueAtTime(freq*2.5,time);
+  var pe=ctx.createGain();pe.gain.setValueAtTime(0.001,time);pe.gain.linearRampToValueAtTime(1.6,time+0.003);pe.gain.exponentialRampToValueAtTime(0.001,time+0.08);
+  var cl=Math.floor(ctx.sampleRate*0.012),cb=ctx.createBuffer(1,cl,ctx.sampleRate),cd=cb.getChannelData(0);
+  for(var i=0;i<cl;i++)cd[i]=(Math.random()*2-1)*(1-i/cl);
+  var ck=ctx.createBufferSource();ck.buffer=cb;
+  var ce=ctx.createGain();ce.gain.setValueAtTime(1.2,time);ce.gain.exponentialRampToValueAtTime(0.001,time+0.015);
+  s.connect(sf);sf.connect(e);e.connect(drumBus);p.connect(pe);pe.connect(drumBus);ck.connect(ce);ce.connect(drumBus);
+  s.start(time);s.stop(time+1.2);p.start(time);p.stop(time+0.1);ck.start(time);ck.stop(time+0.02);
+}
+function triggerSnare(freq,time){
+  var o=ctx.createOscillator();o.type='triangle';o.frequency.setValueAtTime(freq,time);
+  var e=ctx.createGain();e.gain.setValueAtTime(0.001,time);e.gain.linearRampToValueAtTime(1.1,time+0.003);e.gain.exponentialRampToValueAtTime(0.001,time+0.12);
+  var nl=Math.floor(ctx.sampleRate*0.22),nb=ctx.createBuffer(1,nl,ctx.sampleRate),nd=nb.getChannelData(0);
+  for(var i=0;i<nl;i++)nd[i]=Math.random()*2-1;
+  var ns=ctx.createBufferSource();ns.buffer=nb;
+  var nh=ctx.createBiquadFilter();nh.type='highpass';nh.frequency.value=1600;
+  var ne=ctx.createGain();ne.gain.setValueAtTime(0.001,time);ne.gain.linearRampToValueAtTime(0.8,time+0.002);ne.gain.exponentialRampToValueAtTime(0.001,time+0.19);
+  o.connect(e);e.connect(drumBus);ns.connect(nh);nh.connect(ne);ne.connect(drumBus);
+  o.start(time);o.stop(time+0.15);ns.start(time);ns.stop(time+0.25);
+}
+function triggerHihat(freq,time,decay){
+  var l=Math.floor(ctx.sampleRate*(decay+0.04)),b=ctx.createBuffer(1,l,ctx.sampleRate),d=b.getChannelData(0);
+  for(var i=0;i<d.length;i++)d[i]=Math.random()*2-1;
+  var src=ctx.createBufferSource();src.buffer=b;
+  var bp=ctx.createBiquadFilter();bp.type='bandpass';bp.frequency.value=freq;bp.Q.value=1.8;
+  var hp=ctx.createBiquadFilter();hp.type='highpass';hp.frequency.value=freq*0.7;
+  var e=ctx.createGain();e.gain.setValueAtTime(0.35,time);e.gain.exponentialRampToValueAtTime(0.001,time+decay);
+  src.connect(bp);bp.connect(hp);hp.connect(e);e.connect(drumBus);src.start(time);src.stop(time+decay+0.05);
+}
+function triggerTom(freq,time){
+  var o=ctx.createOscillator();o.type='sine';o.frequency.setValueAtTime(freq,time);
+  var e=ctx.createGain();e.gain.setValueAtTime(0.001,time);e.gain.linearRampToValueAtTime(1.3,time+0.004);e.gain.exponentialRampToValueAtTime(0.001,time+0.45);
+  var lp=ctx.createBiquadFilter();lp.type='lowpass';lp.frequency.value=freq*4;
+  o.connect(lp);lp.connect(e);e.connect(drumBus);o.start(time);o.stop(time+0.5);
+}
+
+// ── SCALE / BEAT ─────────────────────────────────────────
+function randomizeScale(){
+  var idx=Math.floor(Math.random()*SCALE_NAMES.length);
+  currentScaleName=SCALE_NAMES[idx];currentScale=SCALES[currentScaleName];
+  currentRoot=ROOTS[Math.floor(Math.random()*ROOTS.length)];
+  applyScaleToDrums();regenerateMelody();
+  document.getElementById('scale-display').textContent=currentScaleName;
+  document.getElementById('key-display').textContent=currentRoot;
+  if(ctx&&twinActive)regenerateTwinNotes();
+  if(ctx&&singleActive)generateSingleMotif();
+  if(ctx&&fbTunerOsc&&melodyNotes.length>0){
+    var nf=Math.max(20,melodyNotes[currentStep%melodyNotes.length]||220);
+    if(isNaN(nf)||nf<=0)nf=220;
+    var now=ctx.currentTime;
+    var safeOld=Math.max(20,fbCurrentFreq||220);
+    fbTunerOsc.frequency.cancelScheduledValues(now);fbTunerOsc.frequency.setValueAtTime(safeOld,now);fbTunerOsc.frequency.exponentialRampToValueAtTime(nf,now+0.06);
+    fbTunerFilter.frequency.cancelScheduledValues(now);fbTunerFilter.frequency.setValueAtTime(safeOld,now);fbTunerFilter.frequency.exponentialRampToValueAtTime(nf,now+0.06);
+    fbCurrentFreq=nf;
+  }
+}
+function randomizeMelody(){
+  regenerateTwinNotes();
+  if(singleActive)generateSingleMotif();
+  // Re-roll melody note sequence without changing scale or drums
+  // Shuffles the pool ordering so same pitches appear in new arrangement
+  var f=getScaleFreqs(),pool=[];
+  for(var i=0;i<f.length;i++){pool.push(f[i]);pool.push(f[i]*2);pool.push(f[i]*0.5);}
+  var dk=['kick','snare','tom1','tom2'];
+  for(var i=0;i<dk.length;i++)pool.push(snapToScale(drumTunings[dk[i]],f));
+  // Shuffle pool for variation
+  for(var i=pool.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=pool[i];pool[i]=pool[j];pool[j]=t;}
+  melodyNotes=[];
+  for(var i=0;i<steps;i++)melodyNotes.push(pool[i%pool.length]);
+  // Immediately retune feedback osc to new first note
+  if(ctx&&fbTunerOsc&&melodyNotes.length>0){
+    var nf=Math.max(20,melodyNotes[currentStep%melodyNotes.length]);
+    var now=ctx.currentTime;
+    fbTunerOsc.frequency.cancelScheduledValues(now);fbTunerOsc.frequency.setValueAtTime(fbCurrentFreq,now);
+    fbTunerOsc.frequency.exponentialRampToValueAtTime(nf,now+0.06);
+    fbTunerFilter.frequency.cancelScheduledValues(now);fbTunerFilter.frequency.setValueAtTime(fbCurrentFreq,now);
+    fbTunerFilter.frequency.exponentialRampToValueAtTime(nf,now+0.06);
+    fbCurrentFreq=nf;
+  }
+}
+function randomizeBeat(){
+  var kp=[1,0,0,0,0,0,1,0,1,0,0,0,0,0,0,0];
+  var sp=[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0];
+  var hp=[1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0];
+  for(var ri=0;ri<ROWS.length;ri++){
+    var row=ROWS[ri];grid[row.id]=[];
+    for(var i=0;i<steps;i++){
+      var v=false;
+      if(row.type==='kick')v=Math.random()<0.25+kp[i]*0.5;
+      else if(row.type==='snare')v=Math.random()<0.15+sp[i]*0.55;
+      else if(row.type==='hihat')v=Math.random()<0.3+hp[i]*0.4;
+      else if(row.type==='openhat')v=Math.random()<0.08;
+      else v=Math.random()<0.12;
+      grid[row.id].push(v);
+    }
+  }
+  applyScaleToDrums();regenerateMelody();
+  updateXYFromPattern(); // resync XY to new pattern
+}
+function clearBeat(){
+  for(var ri=0;ri<ROWS.length;ri++){grid[ROWS[ri].id]=[];for(var i=0;i<steps;i++)grid[ROWS[ri].id].push(false);}
+}
+function setDefaultBeat(){
+  grid['kick']  =[1,0,0,0,0,0,1,0,0,0,0,0,0,1,0,0];
+  grid['snare'] =[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0];
+  grid['hihat'] =[1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,1];
+  grid['openhat']=[0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0];
+  grid['tom1']  =[0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0];
+  grid['tom2']  =[0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0];
+}
+function startMeter(){
+  setInterval(function(){
+    if(!analyserNode)return;
+    var data=new Uint8Array(analyserNode.frequencyBinCount);
+    analyserNode.getByteTimeDomainData(data);
+    var sum=0;for(var i=0;i<data.length;i++){var v=(data[i]-128)/128;sum+=v*v;}
+    signalLevel=Math.min(1,Math.sqrt(sum/data.length)*8);
+  },50);
+}
+
+// ═══════════════════════════════════════════════════
+//  XY → PATTERN MAPPING
+//  X axis: rhythmic density (left=sparse, right=dense)
+//  Y axis: which voices dominate (top=high/hats, bottom=kick/bass)
+// ═══════════════════════════════════════════════════
+var xyX=0.5,xyY=0.5; // normalized 0-1
+
+function applyXYToPattern(nx,ny){
+  xyX=nx;xyY=ny;
+  // X = overall density 0.1 to 0.9
+  var density=0.1+nx*0.8;
+  // Y = voice balance: 0=all low (kick/tom), 1=all high (hat/openhat)
+  // Each row gets a probability based on Y
+  var rowProbs=[
+    // kick: high at low Y
+    Math.max(0,Math.min(1,(1-ny)*1.4))*density,
+    // snare: peaks at mid Y
+    Math.max(0,Math.min(1,1-Math.abs(ny-0.45)*2.2))*density,
+    // hihat: high at high Y
+    Math.max(0,Math.min(1,ny*1.6))*density,
+    // openhat: high at high Y, sparse
+    Math.max(0,Math.min(1,(ny-0.4)*1.2))*density*0.5,
+    // tom1: mid-low Y
+    Math.max(0,Math.min(1,(0.6-ny)*1.5))*density*0.7,
+    // tom2: low Y
+    Math.max(0,Math.min(1,(0.4-ny)*2.0))*density*0.5
+  ];
+  // Rhythmic feel: X also shifts syncopation
+  // Low X = on-beat (steps 0,4,8,12), high X = more syncopated
+  var syncFactor=nx; // 0=straight, 1=syncopated
+  for(var ri=0;ri<ROWS.length;ri++){
+    var prob=rowProbs[ri];
+    for(var s=0;s<steps;s++){
+      // On-beat bonus
+      var onBeat=(s%4===0)?1:((s%2===0)?0.5:0);
+      var offBeat=1-onBeat;
+      var stepProb=prob*(onBeat*(1-syncFactor*0.7)+offBeat*syncFactor*1.2);
+      stepProb=Math.max(0,Math.min(1,stepProb));
+      // Soft re-roll: blend current with new probability
+      var cur=grid[ROWS[ri].id][s]?1:0;
+      var blend=0.35; // how aggressively to change
+      var newVal=(cur*(1-blend))+(stepProb*blend);
+      grid[ROWS[ri].id][s]=(Math.random()<newVal);
+    }
+  }
+}
+
+function updateXYFromPattern(){
+  // Reverse: compute XY from current pattern state
+  var total=0,high=0,onbeat=0;
+  for(var ri=0;ri<ROWS.length;ri++){
+    for(var s=0;s<steps;s++){
+      if(grid[ROWS[ri].id][s]){
+        total++;
+        if(ri>=2)high++; // hat/openhat/hi voices
+        if(s%4===0)onbeat++;
+      }
+    }
+  }
+  var maxBeats=ROWS.length*steps;
+  xyX=Math.min(1,total/(maxBeats*0.6));
+  xyY=total>0?(high/total):0.5;
+}
+
+// ═══════════════════════════════════════════════════
+//  POLYHEDRON LIBRARY
+//  Each shape has: verts [[x,y,z]], edges [[a,b]], faces [[...]]
+//  Plus metadata used to modulate rendering
+// ═══════════════════════════════════════════════════
+var POLY_LIBRARY=[];
+
+function normalize(v,r){var l=Math.sqrt(v[0]*v[0]+v[1]*v[1]+v[2]*v[2]);r=r||1;return[v[0]/l*r,v[1]/l*r,v[2]/l*r];}
+function scaleV(v,s){return[v[0]*s,v[1]*s,v[2]*s];}
+
+function buildTetra(){
+  var s=1.4;
+  var v=[[s,s,s],[s,-s,-s],[-s,s,-s],[-s,-s,s]];
+  for(var i=0;i<v.length;i++)v[i]=normalize(v[i],1.5);
+  return{name:'TETRA',verts:v,edges:[[0,1],[0,2],[0,3],[1,2],[1,3],[2,3]],faces:[[0,1,2],[0,2,3],[0,3,1],[1,3,2]]};
+}
+function buildCube(){
+  var v=[[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],[-1,-1,1],[1,-1,1],[1,1,1],[-1,1,1]];
+  return{name:'CUBE',verts:v,edges:[[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]],
+    faces:[[0,1,2,3],[4,7,6,5],[0,4,5,1],[2,6,7,3],[1,5,6,2],[0,3,7,4]]};
+}
+function buildOcta(){
+  var v=[[0,1.5,0],[0,-1.5,0],[1.5,0,0],[-1.5,0,0],[0,0,1.5],[0,0,-1.5]];
+  return{name:'OCTA',verts:v,edges:[[0,2],[0,3],[0,4],[0,5],[1,2],[1,3],[1,4],[1,5],[2,4],[4,3],[3,5],[5,2]],
+    faces:[[0,2,4],[0,4,3],[0,3,5],[0,5,2],[1,4,2],[1,3,4],[1,5,3],[1,2,5]]};
+}
+function buildIcosa(){
+  var phi=(1+Math.sqrt(5))/2;
+  var v=[[0,1,phi],[0,-1,phi],[0,1,-phi],[0,-1,-phi],[1,phi,0],[-1,phi,0],[1,-phi,0],[-1,-phi,0],[phi,0,1],[phi,0,-1],[-phi,0,1],[-phi,0,-1]];
+  for(var i=0;i<v.length;i++)v[i]=normalize(v[i],1.5);
+  var f=[[0,1,8],[0,8,4],[0,4,5],[0,5,10],[0,10,1],[1,6,8],[8,6,9],[8,9,4],[4,9,2],[4,2,5],[5,2,11],[5,11,10],[10,11,7],[10,7,1],[1,7,6],[3,9,6],[3,2,9],[3,11,2],[3,7,11],[3,6,7]];
+  var e={};var ea=[];
+  for(var i=0;i<f.length;i++){for(var j=0;j<3;j++){var a=f[i][j],b=f[i][(j+1)%3];var k=Math.min(a,b)+','+Math.max(a,b);if(!e[k]){e[k]=1;ea.push([a,b]);}}}
+  return{name:'ICOSA',verts:v,edges:ea,faces:f};
+}
+function buildDodeca(){
+  var phi=(1+Math.sqrt(5))/2,iphi=1/phi;
+  var v=[
+    [1,1,1],[1,1,-1],[1,-1,1],[1,-1,-1],[-1,1,1],[-1,1,-1],[-1,-1,1],[-1,-1,-1],
+    [0,iphi,phi],[0,-iphi,phi],[0,iphi,-phi],[0,-iphi,-phi],
+    [iphi,phi,0],[-iphi,phi,0],[iphi,-phi,0],[-iphi,-phi,0],
+    [phi,0,iphi],[phi,0,-iphi],[-phi,0,iphi],[-phi,0,-iphi]
+  ];
+  for(var i=0;i<v.length;i++)v[i]=normalize(v[i],1.5);
+  var f=[[0,8,9,2,16],[0,12,13,4,8],[0,16,17,1,12],[1,17,3,11,10],[1,10,5,13,12],[2,9,6,15,14],[2,14,3,17,16],[3,14,15,7,11],[4,13,5,19,18],[4,18,6,9,8],[5,10,11,7,19],[6,18,19,7,15]];
+  var e={};var ea=[];
+  for(var i=0;i<f.length;i++){for(var j=0;j<f[i].length;j++){var a=f[i][j],b=f[i][(j+1)%f[i].length];var k=Math.min(a,b)+','+Math.max(a,b);if(!e[k]){e[k]=1;ea.push([a,b]);}}}
+  return{name:'DODECA',verts:v,edges:ea,faces:f};
+}
+function buildCuboctahedron(){
+  var v=[[1,1,0],[1,-1,0],[-1,1,0],[-1,-1,0],[1,0,1],[1,0,-1],[-1,0,1],[-1,0,-1],[0,1,1],[0,1,-1],[0,-1,1],[0,-1,-1]];
+  for(var i=0;i<v.length;i++)v[i]=normalize(v[i],1.5);
+  var f=[[0,4,8],[0,8,2],[2,8,6],[6,8,10],[10,8,4],[1,5,9],[1,9,3],[3,9,7],[7,9,11],[11,9,5], // triangles
+    [0,1,4],[4,1,11],[11,1,10],[10,1,3],[3,1,0], // wrong — simplified square faces:
+    [0,4,10,2],[2,10,6,3],[3,6,11,7],[7,11,5,1],[1,5,9,0]];
+  // Proper faces
+  var pf=[[0,4,10,2],[4,1,11,10],[1,5,9,0],[5,3,7,9],[3,6,11,7],[2,6,3,0], // squares
+    [0,1,4],[4,10,11],[10,6,3],[3,7,11],[7,5,1],[5,9,0], // triangles — subset
+    [0,8,2],[8,6,10],[8,4,10],[2,6,8]]; // more triangles
+  // Use known correct faces:
+  var gf=[[0,1,4],[0,4,8],[0,8,2],[2,8,6],[6,8,10],[10,8,4],[10,4,1],[10,1,11],[10,11,3],[3,11,7],[7,11,5],[5,11,1],
+    [0,2,9],[2,3,9],[3,7,9],[7,6,9],[6,10,9],[10,0,9]];
+  var ge={};var gea=[];
+  for(var i=0;i<gf.length;i++){for(var j=0;j<gf[i].length;j++){var a=gf[i][j],b=gf[i][(j+1)%gf[i].length];var k=Math.min(a,b)+','+Math.max(a,b);if(!ge[k]){ge[k]=1;gea.push([a,b]);}}}
+  return{name:'CUBOCTA',verts:v,edges:gea,faces:gf};
+}
+function buildAntiprism(n){
+  // n-gon antiprism
+  var v=[];var r=1.2,h=0.7;
+  for(var i=0;i<n;i++){var a=(i/n)*Math.PI*2;v.push([Math.cos(a)*r,h,Math.sin(a)*r]);}
+  for(var i=0;i<n;i++){var a=((i+0.5)/n)*Math.PI*2;v.push([Math.cos(a)*r,-h,Math.sin(a)*r]);}
+  var f=[];
+  // top/bottom caps
+  var top=[],bot=[];for(var i=0;i<n;i++){top.push(i);bot.push(n+i);}
+  f.push(top.slice());f.push(bot.slice().reverse());
+  // side triangles
+  for(var i=0;i<n;i++){
+    f.push([i,(i+1)%n,n+i]);
+    f.push([n+i,(i+1)%n,n+(i+1)%n]);
+  }
+  var e={};var ea=[];
+  for(var i=0;i<f.length;i++){for(var j=0;j<f[i].length;j++){var a=f[i][j],b=f[i][(j+1)%f[i].length];var k=Math.min(a,b)+','+Math.max(a,b);if(!e[k]){e[k]=1;ea.push([a,b]);}}}
+  return{name:'ANTIPRISM'+n,verts:v,edges:ea,faces:f};
+}
+function buildStarTetra(){
+  // Stella octangula — two interpenetrating tetrahedra
+  var v1=[[1,1,1],[1,-1,-1],[-1,1,-1],[-1,-1,1]];
+  var v2=[[-1,-1,-1],[-1,1,1],[1,-1,1],[1,1,-1]];
+  for(var i=0;i<4;i++){v1[i]=normalize(v1[i],1.4);v2[i]=normalize(v2[i],1.4);}
+  var v=v1.concat(v2);
+  var f=[[0,1,2],[0,2,3],[0,3,1],[1,3,2],[4,5,6],[4,6,7],[4,7,5],[5,7,6]];
+  var e={};var ea=[];
+  for(var i=0;i<f.length;i++){for(var j=0;j<3;j++){var a=f[i][j],b=f[i][(j+1)%3];var k=Math.min(a,b)+','+Math.max(a,b);if(!e[k]){e[k]=1;ea.push([a,b]);}}}
+  return{name:'STAR-TETRA',verts:v,edges:ea,faces:f};
+}
+function buildTruncTetra(){
+  var v=[];
+  var base=[[1,1,1],[1,-1,-1],[-1,1,-1],[-1,-1,1]];
+  for(var i=0;i<4;i++)base[i]=normalize(base[i],1);
+  // truncate: cut each vertex
+  for(var i=0;i<4;i++){
+    var vi=base[i];
+    for(var j=0;j<3;j++){
+      var vj=base[j<i?j:j+1<4?j+1:0];
+      if(j===i)continue;
+      v.push(normalize([vi[0]*2/3+vj[0]/3,vi[1]*2/3+vj[1]/3,vi[2]*2/3+vj[2]/3],1.5));
+    }
+  }
+  // Approximate with known vertices
+  var s=1/3;
+  var vv=[[1,1/3,1/3],[1/3,1,1/3],[1/3,1/3,1],[1,-1/3,-1/3],[-1/3,1,-1/3],[-1/3,-1/3,1],
+          [-1,1/3,-1/3],[1/3,-1,1/3],[-1/3,1/3,-1],[-1,-1/3,1/3],[1/3,-1/3,-1],[-1/3,-1,1/3]];
+  for(var i=0;i<vv.length;i++)vv[i]=normalize(vv[i],1.5);
+  var f=[[0,1,2],[3,4,5],[6,7,8],[9,10,11], // triangles
+    [0,3,11,6],[1,4,9,6],[2,5,10,7],[0,2,8,3]]; // hexagons approx as quads
+  var e={};var ea=[];
+  for(var i=0;i<f.length;i++){for(var j=0;j<f[i].length;j++){var a=f[i][j],b=f[i][(j+1)%f[i].length];var k=Math.min(a,b)+','+Math.max(a,b);if(!e[k]){e[k]=1;ea.push([a,b]);}}}
+  return{name:'TRUNC-TETRA',verts:vv,edges:ea,faces:f};
+}
+function buildGyrobifastigium(){
+  // Two triangular prisms joined at square faces, rotated 90deg
+  var v=[[1,0,0.5],[-1,0,0.5],[0,1,0.5],[1,0,-0.5],[-1,0,-0.5],[0,-1,-0.5]];
+  for(var i=0;i<v.length;i++)v[i]=normalize(v[i],1.5);
+  var f=[[0,1,2],[3,4,5],[0,3,4,1],[0,2,5,3],[1,4,5,2]];
+  var e={};var ea=[];
+  for(var i=0;i<f.length;i++){for(var j=0;j<f[i].length;j++){var a=f[i][j],b=f[i][(j+1)%f[i].length];var k=Math.min(a,b)+','+Math.max(a,b);if(!e[k]){e[k]=1;ea.push([a,b]);}}}
+  return{name:'GYROBIFAST',verts:v,edges:ea,faces:f};
+}
+function buildElongSquareDipyramid(){
+  var v=[[0,2,0],[0,-2,0],[1,0,1],[1,0,-1],[-1,0,1],[-1,0,-1],[1,0.5,0],[-1,0.5,0],[0,0.5,1],[0,0.5,-1]];
+  for(var i=0;i<v.length;i++)v[i]=normalize(v[i],1.5);
+  var f=[[0,2,3],[0,3,5],[0,5,4],[0,4,2],[1,2,4],[1,4,5],[1,5,3],[1,3,2]];
+  var e={};var ea=[];
+  for(var i=0;i<f.length;i++){for(var j=0;j<f[i].length;j++){var a=f[i][j],b=f[i][(j+1)%f[i].length];var k=Math.min(a,b)+','+Math.max(a,b);if(!e[k]){e[k]=1;ea.push([a,b]);}}}
+  return{name:'EL-DIPYRAMID',verts:v,edges:ea,faces:f};
+}
+// Rhombicuboctahedron approx
+function buildRhombicubocta(){
+  var v=[];var r=Math.sqrt(2)+1;
+  var c=[1,1+Math.sqrt(2)];
+  var perms=[[c[0],c[0],c[1]],[c[0],c[1],c[0]],[c[1],c[0],c[0]]];
+  for(var pi=0;pi<perms.length;pi++){
+    var p=perms[pi];
+    for(var sx=-1;sx<=1;sx+=2)for(var sy=-1;sy<=1;sy+=2)for(var sz=-1;sz<=1;sz+=2)
+      v.push(normalize([p[0]*sx,p[1]*sy,p[2]*sz],1.5));
+  }
+  // build edges from proximity
+  var ea=[];
+  for(var i=0;i<v.length;i++)for(var j=i+1;j<v.length;j++){
+    var dx=v[i][0]-v[j][0],dy=v[i][1]-v[j][1],dz=v[i][2]-v[j][2];
+    var d=Math.sqrt(dx*dx+dy*dy+dz*dz);
+    if(d<0.85)ea.push([i,j]);
+  }
+  return{name:'RHOMBICUBOCTA',verts:v,edges:ea,faces:[]};
+}
+// Triangular tessellation sphere approx (geodesic)
+// midpoint helper hoisted out of loop — Safari strict mode fix
+function geodesicMidpoint(v,midCache,a,b){
+  var key=Math.min(a,b)+','+Math.max(a,b);
+  if(midCache[key]!==undefined)return midCache[key];
+  var m=normalize([(v[a][0]+v[b][0])/2,(v[a][1]+v[b][1])/2,(v[a][2]+v[b][2])/2],1.5);
+  v.push(m);midCache[key]=v.length-1;return v.length-1;
+}
+function buildGeodesic(freq){
+  freq=freq||2;
+  var ico=buildIcosa();
+  var v=ico.verts.slice();
+  var f=ico.faces.slice();
+  for(var iter=0;iter<freq-1;iter++){
+    var newF=[],midCache={};
+    for(var fi=0;fi<f.length;fi++){
+      var a=f[fi][0],b=f[fi][1],cc=f[fi][2];
+      var ab=geodesicMidpoint(v,midCache,a,b);
+      var bc=geodesicMidpoint(v,midCache,b,cc);
+      var ca=geodesicMidpoint(v,midCache,cc,a);
+      newF.push([a,ab,ca]);newF.push([b,bc,ab]);newF.push([cc,ca,bc]);newF.push([ab,bc,ca]);
+    }
+    f=newF;
+  }
+  var e={},ea=[];
+  for(var i=0;i<f.length;i++){for(var j=0;j<3;j++){var a=f[i][j],bb=f[i][(j+1)%3];var k=Math.min(a,bb)+','+Math.max(a,bb);if(!e[k]){e[k]=1;ea.push([a,bb]);}}}
+  return{name:'GEODESIC'+freq,verts:v,edges:ea,faces:f};
+}
+// Hexagonal tessellation approx — truncated icosahedron (soccer ball)
+function buildTruncIcosa(){
+  var phi=(1+Math.sqrt(5))/2;
+  var v=[
+    [0,1,3*phi],[0,-1,3*phi],[0,1,-3*phi],[0,-1,-3*phi],
+    [1,3*phi,0],[-1,3*phi,0],[1,-3*phi,0],[-1,-3*phi,0],
+    [3*phi,0,1],[3*phi,0,-1],[-3*phi,0,1],[-3*phi,0,-1],
+    [2,1+2*phi,phi],[2,1+2*phi,-phi],[-2,1+2*phi,phi],[-2,1+2*phi,-phi],
+    [2,-1-2*phi,phi],[2,-1-2*phi,-phi],[-2,-1-2*phi,phi],[-2,-1-2*phi,-phi],
+    [1+2*phi,phi,2],[1+2*phi,-phi,2],[1+2*phi,phi,-2],[1+2*phi,-phi,-2],
+    [-1-2*phi,phi,2],[-1-2*phi,-phi,2],[-1-2*phi,phi,-2],[-1-2*phi,-phi,-2],
+    [phi,2,1+2*phi],[-phi,2,1+2*phi],[phi,-2,1+2*phi],[-phi,-2,1+2*phi],
+    [phi,2,-1-2*phi],[-phi,2,-1-2*phi],[phi,-2,-1-2*phi],[-phi,-2,-1-2*phi],
+    [2*phi,1+phi,1],[2*phi,-(1+phi),1],[2*phi,1+phi,-1],[2*phi,-(1+phi),-1],
+    [-2*phi,1+phi,1],[-2*phi,-(1+phi),1],[-2*phi,1+phi,-1],[-2*phi,-(1+phi),-1],
+    [1+phi,1,2*phi],[-(1+phi),1,2*phi],[1+phi,-1,2*phi],[-(1+phi),-1,2*phi],
+    [1+phi,1,-2*phi],[-(1+phi),1,-2*phi],[1+phi,-1,-2*phi],[-(1+phi),-1,-2*phi],
+    [1,2*phi,1+phi],[-1,2*phi,1+phi],[1,-2*phi,1+phi],[-1,-2*phi,1+phi],
+    [1,2*phi,-(1+phi)],[-1,2*phi,-(1+phi)],[1,-2*phi,-(1+phi)],[-1,-2*phi,-(1+phi)]
+  ];
+  for(var i=0;i<v.length;i++)v[i]=normalize(v[i],1.5);
+  // edges by proximity
+  var ea=[];
+  for(var i=0;i<v.length;i++)for(var j=i+1;j<v.length;j++){
+    var dx=v[i][0]-v[j][0],dy=v[i][1]-v[j][1],dz=v[i][2]-v[j][2];
+    if(dx*dx+dy*dy+dz*dz<0.5)ea.push([i,j]);
+  }
+  return{name:'TRUNC-ICOSA',verts:v,edges:ea,faces:[]};
+}
+
+// Build library
+POLY_LIBRARY.push(buildTetra());         // 0 — sparse kick only
+POLY_LIBRARY.push(buildCube());          // 1
+POLY_LIBRARY.push(buildOcta());          // 2
+POLY_LIBRARY.push(buildIcosa());         // 3
+POLY_LIBRARY.push(buildDodeca());        // 4
+POLY_LIBRARY.push(buildCuboctahedron()); // 5
+POLY_LIBRARY.push(buildAntiprism(5));    // 6
+POLY_LIBRARY.push(buildAntiprism(8));    // 7
+POLY_LIBRARY.push(buildStarTetra());     // 8
+POLY_LIBRARY.push(buildTruncTetra());    // 9
+POLY_LIBRARY.push(buildGeodesic(2));     // 10
+POLY_LIBRARY.push(buildGeodesic(3));     // 11 — dense/tessellated
+POLY_LIBRARY.push(buildRhombicubocta());// 12
+
+// ═══════════════════════════════════════════════════
+//  RENDERER
+// ═══════════════════════════════════════════════════
+var canvas,c2d,W,H,cxc,cyc;
+var signalLevel=0;
+var frame=0;
+
+// Rotation
+var rotX=0.4,rotY=0.3,rotZ=0;
+var rotVX=0.003,rotVY=0.005,rotVZ=0.001;
+
+// Shape state
+var currentPolyIdx=0;
+var targetPolyIdx=0;
+var morphVerts=[]; // interpolated vertices
+var morphT=1.0;    // 1 = at current, 0 = start morphing
+var morphFrom=[];  // verts at morph start
+
+// Beat deformation
+var deformAmt=0;   // 0-1, spikes on kick
+var deformSeed=0;
+
+// Per-vertex deform offsets (noise-like)
+var vertDeform=[];
+
+function onStepVisual(step){
+  // Determine which shape to use based on pattern state + XY
+  var targetIdx=computeTargetShape();
+  if(targetIdx!==currentPolyIdx){
+    startMorph(targetIdx);
+  }
+  // Deform on hit
+  var anyKick=grid['kick'][step]||grid['tom2'][step];
+  var anySnare=grid['snare'][step]||grid['tom1'][step];
+  var anyHat=grid['hihat'][step]||grid['openhat'][step];
+  if(anyKick){deformAmt=1.0;deformSeed=Math.random()*1000;}
+  else if(anySnare){deformAmt=Math.max(deformAmt,0.6);deformSeed=Math.random()*1000;}
+  else if(anyHat){deformAmt=Math.max(deformAmt,0.3);}
+}
+
+function computeTargetShape(){
+  // Use XY position + pattern metrics to select shape
+  var total=0;for(var ri=0;ri<ROWS.length;ri++)for(var s=0;s<steps;s++)if(grid[ROWS[ri].id][s])total++;
+  var density=total/(ROWS.length*steps);
+
+  // X: morphological complexity (left=simple, right=complex/tessellated)
+  // Y: type of solid (bottom=platonic, top=archimedean/geodesic)
+  var complexity=xyX; // 0-1
+  var height=1-xyY;   // 0=top(geodesic) 1=bottom(platonic)
+
+  // Map to library index
+  // Combine complexity and height
+  var idx;
+  if(complexity<0.15){
+    idx=height<0.5?0:3; // tetra or icosa
+  }else if(complexity<0.3){
+    idx=height<0.3?1:height<0.6?2:5; // cube,octa,cubocta
+  }else if(complexity<0.5){
+    idx=height<0.3?6:height<0.6?7:8; // antiprisms, star
+  }else if(complexity<0.65){
+    idx=height<0.4?4:height<0.7?9:5; // dodeca,trunc-tetra
+  }else if(complexity<0.8){
+    idx=10; // geodesic 2
+  }else{
+    idx=density>0.4?11:12; // geodesic 3 or rhombicubocta
+  }
+  return Math.min(idx,POLY_LIBRARY.length-1);
+}
+
+function startMorph(toIdx){
+  // Save current interpolated verts as morph start
+  morphFrom=[];
+  var src=POLY_LIBRARY[currentPolyIdx].verts;
+  for(var i=0;i<src.length;i++)morphFrom.push([src[i][0],src[i][1],src[i][2]]);
+  currentPolyIdx=toIdx;
+  morphT=0.0;
+  vertDeform=[];
+  var nv=POLY_LIBRARY[currentPolyIdx].verts.length;
+  for(var i=0;i<nv;i++)vertDeform.push([Math.random()-0.5,Math.random()-0.5,Math.random()-0.5]);
+}
+
+function getWorkingVerts(){
+  var poly=POLY_LIBRARY[currentPolyIdx];
+  var src=poly.verts;
+  var result=[];
+  for(var i=0;i<src.length;i++){
+    var v=[src[i][0],src[i][1],src[i][2]];
+    // Deform on beat
+    if(deformAmt>0.01&&i<vertDeform.length){
+      var d=vertDeform[i];
+      var t=deformAmt;
+      // kick deform: radial spike
+      if(grid['kick']&&grid['kick'][activeStep>=0?activeStep:0]){
+        var len=Math.sqrt(v[0]*v[0]+v[1]*v[1]+v[2]*v[2]);
+        if(len>0){v[0]+=d[0]*t*0.5+v[0]/len*t*0.3;v[1]+=d[1]*t*0.5+v[1]/len*t*0.3;v[2]+=d[2]*t*0.5+v[2]/len*t*0.3;}
+      }else{
+        v[0]+=d[0]*t*0.3;v[1]+=d[1]*t*0.3;v[2]+=d[2]*t*0.3;
+      }
+    }
+    result.push(v);
+  }
+  return result;
+}
+
+function rot3(v,rx,ry,rz){
+  // X
+  var y1=v[1]*Math.cos(rx)-v[2]*Math.sin(rx);
+  var z1=v[1]*Math.sin(rx)+v[2]*Math.cos(rx);
+  // Y
+  var x2=v[0]*Math.cos(ry)+z1*Math.sin(ry);
+  var z2=-v[0]*Math.sin(ry)+z1*Math.cos(ry);
+  // Z
+  var x3=x2*Math.cos(rz)-y1*Math.sin(rz);
+  var y3=x2*Math.sin(rz)+y1*Math.cos(rz);
+  return[x3,y3,z2];
+}
+
+function proj(v,scale){
+  var fov=4;var z=v[2]+fov;
+  return[cxc+v[0]/z*scale,cyc+v[1]/z*scale,z];
+}
+
+function render(){
+  requestAnimationFrame(render);
+  frame++;
+  c2d.clearRect(0,0,W,H);
+
+  // Background — radial void
+  var g=c2d.createRadialGradient(cxc,cyc,0,cxc,cyc,Math.max(W,H)*0.7);
+  g.addColorStop(0,'rgba(18,4,8,1)');g.addColorStop(1,'rgba(10,6,8,1)');
+  c2d.fillStyle=g;c2d.fillRect(0,0,W,H);
+
+  // Decay
+  deformAmt*=0.88;
+  for(var ri=0;ri<rowEnergies.length;ri++)rowEnergies[ri]*=0.9;
+  signalLevel*=0.92;
+  if(morphT<1.0)morphT=Math.min(1.0,morphT+0.04);
+
+  // Rotate — speed driven by signal + row energies
+  var speedMult=1+signalLevel*1.5+deformAmt*0.8;
+  // Kick (row 0) torques X, snare (row 1) torques Y, hats (row 2) torques Z
+  rotVX=0.003+rowEnergies[1]*0.02;
+  rotVY=0.005+rowEnergies[0]*0.03;
+  rotVZ=0.001+rowEnergies[2]*0.015;
+  rotX+=rotVX*speedMult;rotY+=rotVY*speedMult;rotZ+=rotVZ*speedMult;
+
+  var poly=POLY_LIBRARY[currentPolyIdx];
+  var scale=Math.min(W,H)*(0.42+xyX*0.06+deformAmt*0.05);
+  var wv=getWorkingVerts();
+
+  // Project all vertices
+  var pv=[];
+  for(var i=0;i<wv.length;i++){
+    var rv=rot3(wv[i],rotX,rotY,rotZ);
+    pv.push(proj(rv,scale));
+  }
+
+  // Draw faces if available
+  if(poly.faces&&poly.faces.length>0){
+    // Sort faces back-to-front
+    var fd=[];
+    for(var fi=0;fi<poly.faces.length;fi++){
+      var face=poly.faces[fi];var avgZ=0;
+      for(var vi=0;vi<face.length;vi++)avgZ+=pv[face[vi]][2];
+      fd.push({fi:fi,z:avgZ/face.length});
+    }
+    fd.sort(function(a,b){return b.z-a.z;});
+
+    for(var di=0;di<fd.length;di++){
+      var face=poly.faces[fd[di].fi];
+      // Color driven by row energies + which face
+      var fi=fd[di].fi;
+      var rowIdx=fi%ROWS.length;
+      var energy=rowEnergies[rowIdx]||0;
+      var ROW_COL=[[139,26,26],[122,59,46],[45,90,39],[60,110,50],[255,179,71],[200,120,40]];
+      var col=ROW_COL[rowIdx];
+      var bright=0.15+energy*0.7+signalLevel*0.2+deformAmt*0.3*(rowIdx===0?1:0);
+      var alpha=0.12+energy*0.35+deformAmt*0.15;
+      alpha=Math.min(0.7,alpha);
+      var r=Math.min(255,Math.floor(col[0]*bright+deformAmt*80));
+      var gc=Math.min(255,Math.floor(col[1]*bright));
+      var b=Math.min(255,Math.floor(col[2]*bright));
+      c2d.beginPath();c2d.moveTo(pv[face[0]][0],pv[face[0]][1]);
+      for(var vi=1;vi<face.length;vi++)c2d.lineTo(pv[face[vi]][0],pv[face[vi]][1]);
+      c2d.closePath();
+      c2d.fillStyle='rgba('+r+','+gc+','+b+','+alpha.toFixed(2)+')';c2d.fill();
+    }
+  }
+
+  // Draw edges — the main visual language
+  var EDGE_COLS=[
+    [180,30,30],   // kick — crimson
+    [150,70,40],   // snare — rust
+    [50,180,60],   // hihat — jade/phosphor
+    [70,200,80],   // openhat
+    [255,179,71],  // tom1 — amber
+    [200,130,50]   // tom2
+  ];
+  if(poly.edges&&poly.edges.length>0){
+    for(var ei=0;ei<poly.edges.length;ei++){
+      var e=poly.edges[ei];
+      if(e[0]>=pv.length||e[1]>=pv.length)continue;
+      var pa=pv[e[0]],pb=pv[e[1]];
+      var rowIdx=ei%ROWS.length;
+      var energy=rowEnergies[rowIdx]||0;
+      var col=EDGE_COLS[rowIdx];
+      // Check if this step is active for this row
+      var stepOn=activeStep>=0&&grid[ROWS[rowIdx].id][activeStep];
+      var glowMult=stepOn?3:1;
+      var alpha=0.15+energy*0.8*glowMult+signalLevel*0.3+deformAmt*(rowIdx===0?0.8:0.3);
+      alpha=Math.min(1.0,alpha);
+      var lw=0.4+energy*3*glowMult+deformAmt*(rowIdx===0?2:0.8);
+      var r=Math.min(255,col[0]+Math.floor(energy*120*glowMult)+Math.floor(deformAmt*80));
+      var gc=Math.min(255,col[1]+Math.floor(energy*60*glowMult));
+      var b=Math.min(255,col[2]+Math.floor(energy*40*glowMult));
+      c2d.beginPath();c2d.moveTo(pa[0],pa[1]);c2d.lineTo(pb[0],pb[1]);
+      c2d.strokeStyle='rgba('+r+','+gc+','+b+','+alpha.toFixed(2)+')';
+      c2d.lineWidth=lw;c2d.stroke();
+      // Glow pass on active
+      if(energy>0.3||stepOn){
+        c2d.beginPath();c2d.moveTo(pa[0],pa[1]);c2d.lineTo(pb[0],pb[1]);
+        c2d.strokeStyle='rgba('+r+','+gc+','+b+','+(alpha*0.3).toFixed(2)+')';
+        c2d.lineWidth=lw*4;c2d.stroke();
+      }
+    }
+  }
+
+  // Draw vertices as bright nodes
+  for(var vi=0;vi<pv.length;vi++){
+    var rowIdx=vi%ROWS.length;
+    var energy=rowEnergies[rowIdx]||0;
+    var stepOn=activeStep>=0&&grid[ROWS[rowIdx].id][activeStep];
+    var col=EDGE_COLS[rowIdx];
+    var vr=1.5+energy*4+(stepOn?3:0)+deformAmt*(rowIdx===0?3:0.5);
+    var valpha=0.3+energy*0.7+(stepOn?0.5:0);
+    valpha=Math.min(1,valpha);
+    c2d.beginPath();c2d.arc(pv[vi][0],pv[vi][1],vr,0,Math.PI*2);
+    c2d.fillStyle='rgba('+col[0]+','+col[1]+','+col[2]+','+valpha.toFixed(2)+')';c2d.fill();
+  }
+
+
+
+  // Shape name HUD
+  c2d.font='6px "Press Start 2P", monospace';
+  c2d.fillStyle='rgba(122,85,32,0.6)';
+  c2d.fillText(poly.name,8,H-10);
+}
+
+function startRender(){
+  canvas=document.getElementById('poly-canvas');
+  c2d=canvas.getContext('2d');
+  resizeCanvas();
+  currentPolyIdx=0;
+  vertDeform=[];
+  var nv=POLY_LIBRARY[0].verts.length;
+  for(var i=0;i<nv;i++)vertDeform.push([Math.random()-0.5,Math.random()-0.5,Math.random()-0.5]);
+  render();
+
+  // Touch events
+  canvas.addEventListener('touchstart',function(e){e.preventDefault();var t=e.changedTouches[0];var r=canvas.getBoundingClientRect();handleCanvasMove(t.clientX-r.left,t.clientY-r.top);},{passive:false});
+  canvas.addEventListener('touchmove',function(e){e.preventDefault();var t=e.changedTouches[0];var r=canvas.getBoundingClientRect();handleCanvasMove(t.clientX-r.left,t.clientY-r.top);},{passive:false});
+  canvas.addEventListener('mousedown',function(e){var r=canvas.getBoundingClientRect();handleCanvasMove(e.clientX-r.left,e.clientY-r.top);});
+  canvas.addEventListener('mousemove',function(e){if(e.buttons===0)return;var r=canvas.getBoundingClientRect();handleCanvasMove(e.clientX-r.left,e.clientY-r.top);});
+}
+
+function handleCanvasMove(ex,ey){
+  var nx=Math.max(0,Math.min(1,ex/W));
+  var ny=Math.max(0,Math.min(1,ey/H));
+  applyXYToPattern(nx,ny);
+  var ti=computeTargetShape();
+  if(ti!==currentPolyIdx)startMorph(ti);
+}
+
+function resizeCanvas(){
+  if(!canvas)return;
+  var r=canvas.getBoundingClientRect();
+  W=canvas.width=r.width;H=canvas.height=r.height;cxc=W/2;cyc=H/2;
+}
+
+// ── SIGIL ───────────────────────────────────────────────
+function drawSigil(){
+  var cv=document.getElementById('sigil-canvas');if(!cv)return;
+  var c=cv.getContext('2d'),t=Date.now()/1000,cx=60,cy=60;
+  c.fillStyle='#0A0608';c.fillRect(0,0,120,120);
+  c.strokeStyle='rgba(139,26,26,'+(0.6+0.3*Math.sin(t))+')';c.lineWidth=2;
+  c.beginPath();c.arc(cx,cy,54,0,Math.PI*2);c.stroke();
+  c.strokeStyle='rgba(255,179,71,'+(0.4+0.4*Math.sin(t*1.7))+')';c.lineWidth=1;
+  c.beginPath();c.arc(cx,cy,38,0,Math.PI*2);c.stroke();
+  c.save();c.translate(cx,cy);c.rotate(t*0.4);c.strokeStyle='#8B1A1A';c.lineWidth=1;
+  for(var i=0;i<8;i++){var a=(i/8)*Math.PI*2;c.beginPath();c.moveTo(0,0);c.lineTo(Math.cos(a)*45,Math.sin(a)*45);c.stroke();}
+  c.restore();
+  for(var i=0;i<16;i++){
+    var a=(i/16)*Math.PI*2+t*0.2;
+    c.fillStyle=(i%4===0)?'#FFB347':'#7A3B2E';
+    c.fillRect(cx+Math.cos(a)*54-2,cy+Math.sin(a)*54-2,4,4);
+  }
+  c.fillStyle='rgba(57,255,20,'+(0.5+0.5*Math.sin(t*2))+')';c.fillRect(cx-3,cy-3,6,6);
+  c.fillStyle='#0A0608';c.fillRect(cx-1,cy-1,2,2);
+  requestAnimationFrame(drawSigil);
+}
+
+window.onload=function(){
+  drawSigil();
+  window.addEventListener('resize',resizeCanvas);
+  document.getElementById('invoke-btn').onclick=function(){var ts=document.getElementById('init-tempo-slider');if(ts){tempo=parseInt(ts.value);}initAudio();};
+  document.getElementById('init-tempo-slider').oninput=function(){tempo=parseInt(this.value);document.getElementById('init-tempo-val').textContent=tempo;};
+  document.getElementById('melody-btn').onclick=function(){randomizeMelody();};
+  document.getElementById('beat-btn').onclick=function(){randomizeBeat();};
+  document.getElementById('scale-btn').onclick=function(){randomizeScale();};
+  document.getElementById('clear-btn').onclick=function(){clearBeat();};
+  document.getElementById('twin-btn').onclick=function(){toggleTwin();};
+  var singleBtn=document.getElementById('single-btn');
+  singleBtn.addEventListener('touchstart',function(e){e.preventDefault();onSinglePress();},{passive:false});
+  singleBtn.addEventListener('touchend',function(e){e.preventDefault();onSingleRelease();},{passive:false});
+  singleBtn.addEventListener('mousedown',function(){onSinglePress();});
+  singleBtn.addEventListener('mouseup',function(){onSingleRelease();});
+
+  // Momentary flash for BEAT, SCALE, CLR
+  function flashBtn(id){
+    var b=document.getElementById(id);
+    b.classList.add('active');
+    setTimeout(function(){b.classList.remove('active');},300);
+  }
+  var _beatClick=document.getElementById('beat-btn').onclick;
+  document.getElementById('beat-btn').onclick=function(){flashBtn('beat-btn');randomizeBeat();};
+  var _scaleClick=document.getElementById('scale-btn').onclick;
+  document.getElementById('scale-btn').onclick=function(){flashBtn('scale-btn');randomizeScale();};
+  var _clearClick=document.getElementById('clear-btn').onclick;
+  document.getElementById('clear-btn').onclick=function(){flashBtn('clear-btn');clearBeat();};
+
+  // MELODY stays lit while feedback is playing (toggled by isPlaying)
+  // Just flash it momentarily on tap
+  var _melodyClick=document.getElementById('melody-btn').onclick;
+  document.getElementById('melody-btn').onclick=function(){
+    flashBtn('melody-btn');randomizeMelody();
+  };
+};
+</script>
+</body>
+</html>
