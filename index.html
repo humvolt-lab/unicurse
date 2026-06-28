@@ -273,12 +273,15 @@ function initAudio(){
     toneFilter.connect(fbLoopGain);fbLoopGain.connect(distortionNode);
     masterGain.connect(compressor);compressor.connect(analyserNode);analyserNode.connect(limiter);limiter.connect(ctx.destination);
     fbTunerOsc.start();ctx.resume();
-    randomizeScale();setDefaultBeat();
+    randomizeScale();
+    clearBeat();
+    // Auto-enable synth on load
     document.getElementById('init-screen').style.display='none';
     document.getElementById('app').classList.add('visible');
     initTwin();
     resizeCanvas();startRender();startMeter();
     startPlayback();
+    toggleTwin(); // start with synth on
   }catch(e){
     var o=document.getElementById('err-overlay'),m=document.getElementById('err-msg');
     o.style.display='block';m.textContent='INIT ERR:'+e.message+'\n'+e.stack;
@@ -1448,22 +1451,82 @@ function resizeCanvas(){
 // ── SIGIL ───────────────────────────────────────────────
 function drawSigil(){
   var cv=document.getElementById('sigil-canvas');if(!cv)return;
-  var c=cv.getContext('2d'),t=Date.now()/1000,cx=60,cy=60;
-  c.fillStyle='#0A0608';c.fillRect(0,0,120,120);
-  c.strokeStyle='rgba(139,26,26,'+(0.6+0.3*Math.sin(t))+')';c.lineWidth=2;
-  c.beginPath();c.arc(cx,cy,54,0,Math.PI*2);c.stroke();
-  c.strokeStyle='rgba(255,179,71,'+(0.4+0.4*Math.sin(t*1.7))+')';c.lineWidth=1;
-  c.beginPath();c.arc(cx,cy,38,0,Math.PI*2);c.stroke();
-  c.save();c.translate(cx,cy);c.rotate(t*0.4);c.strokeStyle='#8B1A1A';c.lineWidth=1;
-  for(var i=0;i<8;i++){var a=(i/8)*Math.PI*2;c.beginPath();c.moveTo(0,0);c.lineTo(Math.cos(a)*45,Math.sin(a)*45);c.stroke();}
-  c.restore();
-  for(var i=0;i<16;i++){
-    var a=(i/16)*Math.PI*2+t*0.2;
-    c.fillStyle=(i%4===0)?'#FFB347':'#7A3B2E';
-    c.fillRect(cx+Math.cos(a)*54-2,cy+Math.sin(a)*54-2,4,4);
+  var c=cv.getContext('2d');
+  var t=Date.now()/1000;
+  var cxs=60,cys=60,s=120;
+  c.fillStyle='#0A0608';c.fillRect(0,0,s,s);
+
+  // Stella octangula — two interlocking tetrahedra projected to 2D
+  // Rotate both around Y axis, slight X tilt
+  var rotY=t*0.6;
+  var rotX=0.4+Math.sin(t*0.3)*0.15;
+
+  function rot3s(v){
+    // X rotation
+    var y1=v[1]*Math.cos(rotX)-v[2]*Math.sin(rotX);
+    var z1=v[1]*Math.sin(rotX)+v[2]*Math.cos(rotX);
+    // Y rotation
+    var x2=v[0]*Math.cos(rotY)+z1*Math.sin(rotY);
+    var z2=-v[0]*Math.sin(rotY)+z1*Math.cos(rotY);
+    return[x2,y1,z2];
   }
-  c.fillStyle='rgba(57,255,20,'+(0.5+0.5*Math.sin(t*2))+')';c.fillRect(cx-3,cy-3,6,6);
-  c.fillStyle='#0A0608';c.fillRect(cx-1,cy-1,2,2);
+  function proj2d(v){
+    var fov=3.5,z=v[2]+fov;
+    return[cxs+v[0]/z*52,cys+v[1]/z*52,z];
+  }
+
+  // Stella octangula vertices — two tetrahedra
+  var a=1.0;
+  var t1=[[ a, a, a],[ a,-a,-a],[-a, a,-a],[-a,-a, a]];
+  var t2=[[-a,-a,-a],[-a, a, a],[ a,-a, a],[ a, a,-a]];
+  var faces1=[[0,1,2],[0,2,3],[0,3,1],[1,3,2]];
+  var faces2=[[0,1,2],[0,2,3],[0,3,1],[1,3,2]];
+
+  // Project all verts
+  var p1=[],p2=[];
+  for(var i=0;i<4;i++){p1.push(proj2d(rot3s(t1[i])));}
+  for(var i=0;i<4;i++){p2.push(proj2d(rot3s(t2[i])));}
+
+  // Sort faces back to front
+  var allFaces=[];
+  for(var i=0;i<faces1.length;i++){
+    var avgZ=(p1[faces1[i][0]][2]+p1[faces1[i][1]][2]+p1[faces1[i][2]][2])/3;
+    allFaces.push({pts:p1,f:faces1[i],z:avgZ,which:0});
+  }
+  for(var i=0;i<faces2.length;i++){
+    var avgZ=(p2[faces2[i][0]][2]+p2[faces2[i][1]][2]+p2[faces2[i][2]][2])/3;
+    allFaces.push({pts:p2,f:faces2[i],z:avgZ,which:1});
+  }
+  allFaces.sort(function(a,b){return b.z-a.z;});
+
+  var pulse=0.5+0.5*Math.sin(t*1.8);
+  var pulse2=0.5+0.5*Math.sin(t*2.3+1.2);
+
+  for(var fi=0;fi<allFaces.length;fi++){
+    var fd=allFaces[fi];
+    var pp=fd.pts;var ff=fd.f;
+    c.beginPath();
+    c.moveTo(pp[ff[0]][0],pp[ff[0]][1]);
+    c.lineTo(pp[ff[1]][0],pp[ff[1]][1]);
+    c.lineTo(pp[ff[2]][0],pp[ff[2]][1]);
+    c.closePath();
+    if(fd.which===0){
+      c.fillStyle='rgba(139,26,26,'+(0.08+pulse*0.12)+')';
+      c.fill();
+      c.strokeStyle='rgba(255,60,60,'+(0.5+pulse*0.5)+')';
+    }else{
+      c.fillStyle='rgba(255,179,71,'+(0.06+pulse2*0.10)+')';
+      c.fill();
+      c.strokeStyle='rgba(255,179,71,'+(0.4+pulse2*0.6)+')';
+    }
+    c.lineWidth=1.2;c.stroke();
+  }
+
+  // Glowing center pixel
+  c.fillStyle='rgba(57,255,20,'+(0.6+0.4*Math.sin(t*3))+')';
+  c.fillRect(cxs-2,cys-2,4,4);
+  c.fillStyle='#0A0608';c.fillRect(cxs-1,cys-1,2,2);
+
   requestAnimationFrame(drawSigil);
 }
 
